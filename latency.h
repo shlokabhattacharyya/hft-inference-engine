@@ -1,5 +1,14 @@
-// lightweight latency measurement utilities using a fast monotonic counter and percentile reporting.
-// uses RDTSCP on x86, mach_absolute_time on macOS, and clock_gettime elsewhere.
+// lightweight latency measurement utilities using a fast monotonic counter
+// and percentile reporting.
+//
+// timer backends:
+//   x86_64  — RDTSCP (cycle counter, serializing). the tick→ns conversion
+//             reads "cpu MHz" from /proc/cpuinfo, which reports the *current*
+//             P-state frequency and may differ from the invariant TSC rate on
+//             modern Intel/AMD. for rigorous benchmarking, pin the CPU
+//             governor to "performance" or calibrate against clock_gettime.
+//   macOS   — mach_absolute_time (nanosecond-class monotonic counter).
+//   other   — clock_gettime(CLOCK_MONOTONIC_RAW), already in nanoseconds.
 
 
 #ifndef LATENCY_H
@@ -12,7 +21,10 @@
 
 typedef unsigned long long u64;
 
+// timer backends //
+
 #if defined(__x86_64__) || defined(_M_X64)
+
 static inline u64 ticks_now(void) {
     unsigned int lo, hi, aux;
     __asm__ __volatile__("rdtscp" : "=a"(lo), "=d"(hi), "=c"(aux));
@@ -20,9 +32,12 @@ static inline u64 ticks_now(void) {
 }
 
 // detect CPU frequency from /proc/cpuinfo (Linux). fallback 3.0 GHz.
+// NOTE: this reads the instantaneous reported MHz, which may be affected
+// by frequency scaling. for best results run with:
+//      sudo cpupower frequency-set -g performance
 static inline double ticks_to_ns_scale(void) {
     FILE *f = fopen("/proc/cpuinfo", "r");
-    if (!f) return 1e9 / (3.0e9);
+    if (!f) return 1e9 / 3.0e9;
     char line[256];
     double mhz = 0.0;
     while (fgets(line, sizeof(line), f)) {
@@ -33,7 +48,7 @@ static inline double ticks_to_ns_scale(void) {
     }
     fclose(f);
     if (mhz <= 0.0) mhz = 3000.0;
-    return 1e9 / (mhz * 1e6); // ns per tick
+    return 1e9 / (mhz * 1e6);  // ns per tick
 }
 
 #elif defined(__APPLE__)
@@ -43,7 +58,6 @@ static inline u64 ticks_now(void) {
     return (u64)mach_absolute_time();
 }
 
-// mach_absolute_time ticks * numer/denom = ns
 static inline double ticks_to_ns_scale(void) {
     mach_timebase_info_data_t info;
     mach_timebase_info(&info);
@@ -60,26 +74,32 @@ static inline u64 ticks_now(void) {
 }
 
 static inline double ticks_to_ns_scale(void) {
-    return 1.0; // already ns
+    return 1.0;  // already nanoseconds
 }
 #endif
+
+// sample collection and reporting // 
 
 #define MAX_SAMPLES 200000
 
 typedef struct {
     u64 samples[MAX_SAMPLES];
     size_t count;
+    size_t dropped;       // track how many samples exceeded the buffer
     double ns_per_tick;
 } Latency;
 
 static inline void lat_init(Latency *l) {
     l->count = 0;
+    l->dropped = 0;
     l->ns_per_tick = ticks_to_ns_scale();
 }
 
 static inline void lat_record(Latency *l, u64 ticks) {
     if (l->count < MAX_SAMPLES) {
         l->samples[l->count++] = (u64)((double)ticks * l->ns_per_tick);
+    } else {
+        l->dropped++;
     }
 }
 
@@ -92,14 +112,17 @@ static inline void lat_report(Latency *l) {
     if (!l->count) return;
     qsort(l->samples, l->count, sizeof(u64), _cmp_u64);
     size_t n = l->count;
-#define PCT(p) l->samples[(size_t)((p) / 100.0 * (n - 1))]
-    printf("\n=== latency (%zu samples) ===\n", n);
-    printf("  p50:   %4llu ns\n", PCT(50.0));
-    printf("  p95:   %4llu ns\n", PCT(95.0));
-    printf("  p99:   %4llu ns\n", PCT(99.0));
-    printf("  p99.9: %4llu ns\n", PCT(99.9));
-    printf("  min:   %4llu ns\n", l->samples[0]);
-    printf("  max:   %4llu ns\n", l->samples[n - 1]);
+#define PCT(p) l->samples[(size_t)((p) / 100.0 * (double)(n - 1))]
+    fprintf(stderr, "\n=== latency (%zu samples) ===\n", n);
+    fprintf(stderr, "  p50:   %4llu ns\n", (unsigned long long)PCT(50.0));
+    fprintf(stderr, "  p95:   %4llu ns\n", (unsigned long long)PCT(95.0));
+    fprintf(stderr, "  p99:   %4llu ns\n", (unsigned long long)PCT(99.0));
+    fprintf(stderr, "  p99.9: %4llu ns\n", (unsigned long long)PCT(99.9));
+    fprintf(stderr, "  min:   %4llu ns\n", (unsigned long long)l->samples[0]);
+    fprintf(stderr, "  max:   %4llu ns\n", (unsigned long long)l->samples[n - 1]);
+    if (l->dropped > 0)
+        fprintf(stderr, "  WARNING: %zu samples dropped (buffer full at %d)\n",
+                l->dropped, MAX_SAMPLES);
 #undef PCT
 }
 

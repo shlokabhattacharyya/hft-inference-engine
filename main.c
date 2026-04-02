@@ -58,7 +58,10 @@ static int compute_features(const TickBuf *b, float *f) {
     f[4] = tv > 0 ? (float)((t0->bid_vol - t0->ask_vol) / tv) : 0.0f; // book imbalance
 
     double imb = 0;
-    for (int i = 0; i < 10; i++) { const Tick *t = buf_get(b, i); imb += t->side * t->trade_vol; }
+    for (int i = 0; i < 10; i++) {
+        const Tick *t = buf_get(b, i);
+        imb += t->side * t->trade_vol;
+    }
     f[5] = (float)imb;                                        // signed trade flow
 
     f[6] = t0->ask_vol > 0 ? (float)(t0->bid_vol / t0->ask_vol) : 1.0f; // vol ratio
@@ -69,7 +72,8 @@ static int compute_features(const TickBuf *b, float *f) {
     for (int i = 0; i < 10; i++) {
         const Tick *t = buf_get(b, i);
         double m = (t->bid + t->ask) * 0.5;
-        vwap_n += m * t->trade_vol; vwap_d += t->trade_vol;
+        vwap_n += m * t->trade_vol;
+        vwap_d += t->trade_vol;
     }
     double vwap = vwap_d > 0 ? vwap_n / vwap_d : mid0;
     f[9] = (float)((mid0 - vwap) / (vwap + 1e-10));          // VWAP deviation
@@ -79,13 +83,13 @@ static int compute_features(const TickBuf *b, float *f) {
 
 static int load_weights(Weights *w, const char *path) {
     FILE *f = fopen(path, "rb");
-    if (!f) { fprintf(stderr, "cannot open %s\n", path); return 0; }
-    int ok = fread(w->W1, 4, H1*NIN, f)  == (size_t)(H1*NIN)  &&
-             fread(w->b1, 4, H1,     f)  == (size_t)H1         &&
-             fread(w->W2, 4, H2*H1,  f)  == (size_t)(H2*H1)   &&
-             fread(w->b2, 4, H2,     f)  == (size_t)H2         &&
-             fread(w->W3, 4, NOUT*H2,f)  == (size_t)(NOUT*H2) &&
-             fread(w->b3, 4, NOUT,   f)  == (size_t)NOUT;
+    if (!f) {fprintf(stderr, "cannot open %s\n", path); return 0;}
+    int ok = fread(w->W1, 4, H1*NIN,f) == (size_t)(H1*NIN) &&
+             fread(w->b1, 4, H1, f) == (size_t)H1 &&
+             fread(w->W2, 4, H2*H1, f) == (size_t)(H2*H1) &&
+             fread(w->b2, 4, H2, f) == (size_t)H2 &&
+             fread(w->W3, 4, NOUT*H2,f) == (size_t)(NOUT*H2) &&
+             fread(w->b3, 4, NOUT, f) == (size_t)NOUT;
     fclose(f);
     return ok;
 }
@@ -108,20 +112,27 @@ int main(int argc, char **argv) {
 
     int use_simd = (argc >= 5 && strcmp(argv[4], "--simd") == 0);
 
-    Weights   *w = malloc(sizeof(Weights));
-    NormStats  s;
-    if (!load_weights(w, argv[2]) || !load_normstats(&s, argv[3])) return 1;
+    // 32-byte aligned allocation so AVX2 loads hit aligned addresses
+    Weights *w = weights_alloc();
+    if (!w) { fprintf(stderr, "out of memory\n"); return 1; }
+
+    NormStats s;
+    if (!load_weights(w, argv[2]) || !load_normstats(&s, argv[3])) {
+        weights_free(w);
+        return 1;
+    }
     fprintf(stderr, "loaded weights (%s)\n", use_simd ? "SIMD" : "scalar");
 
     FILE *csv = fopen(argv[1], "r");
-    if (!csv) { fprintf(stderr, "cannot open %s\n", argv[1]); return 1; }
+    if (!csv) { fprintf(stderr, "cannot open %s\n", argv[1]); weights_free(w); return 1; }
 
-    TickBuf buf = (TickBuf){0};
-    Latency lat; lat_init(&lat);
+    TickBuf buf = {0};
+    Latency lat;
+    lat_init(&lat);
     char line[512];
     long processed = 0;
 
-    if (!fgets(line, sizeof(line), csv)) return 1;  // skip header
+    if (!fgets(line, sizeof(line), csv)) { fclose(csv); weights_free(w); return 1; }  // skip header
 
     while (fgets(line, sizeof(line), csv)) {
         Tick tick;
@@ -154,6 +165,6 @@ int main(int argc, char **argv) {
     fclose(csv);
     fprintf(stderr, "processed %ld ticks\n", processed);
     lat_report(&lat);
-    free(w);
+    weights_free(w);
     return 0;
 }

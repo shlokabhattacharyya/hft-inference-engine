@@ -1,51 +1,51 @@
-# HFT Inference Engine
+# hft inference engine
 
-A low-latency (sub-400ns) inference engine in C for market microstructure prediction. Trained in Python on real crypto data via Binance, deployed in C with AVX2 SIMD, benchmarked with hardware cycle counters. A 3-layer MLP (10→32→16→3) trained offline on market-style tick data, then deployed as a standalone C inference engine. The model predicts short-term price direction (UP / FLAT / DOWN) from 10 microstructure features.
+a low-latency (sub-400ns) inference engine in C for market microstructure prediction. trained in Python on real crypto data via Binance, deployed in C with AVX2 SIMD, benchmarked with hardware cycle counters. a 3-layer MLP (10→32→16→3) trained offline on market-style tick data, then deployed as a standalone C inference engine. the model predicts short-term price direction (UP / FLAT / DOWN) from 10 microstructure features.
 
-## Features
+## features
 
-Ten features computed over a rolling 10-tick window:
+ten features computed over a rolling 10-tick window:
 
-| Feature | Intuition |
+| feature | Intuition |
 |---|---|
-| 1-tick mid-price return | Immediate momentum |
-| 5-tick mid-price return | Short-term trend |
-| Bid-ask spread | Liquidity cost / uncertainty |
-| Normalized spread | Spread relative to price level |
-| Book imbalance | Directional pressure (`(bid_vol - ask_vol) / total_vol`) |
-| Signed trade flow | Buyer/seller initiated volume over window |
-| Volume ratio | Queue skew (`bid_vol / ask_vol`) |
-| 10-tick momentum | Longer trend signal |
-| Tick intensity | Activity rate |
-| VWAP deviation | Price relative to recent execution average |
+| 1-tick mid-price return | immediate momentum |
+| 5-tick mid-price return | short-term trend |
+| bid-ask spread | liquidity cost / uncertainty |
+| normalized spread | spread relative to price level |
+| book imbalance | directional pressure (`(bid_vol - ask_vol) / total_vol`) |
+| signed trade flow | buyer/seller initiated volume over window |
+| volume ratio | queue skew (`bid_vol / ask_vol`) |
+| 10-tick momentum | longer trend signal |
+| tick intensity | activity rate |
+| VWAP deviation | price relative to recent execution average |
 
 
-## Installation:
+## installation:
 
-1. Clone this repository:
+1. clone this repository:
 ```
 git clone https://github.com/shlokabhattacharyya/hft-inference-engine.git
 cd hft-inference-engine
 ```
-2. Install dependencies:
+2. install dependencies:
 ```
 pip install -r requirements.txt
 ```
-3. Fetch data and train:
+3. fetch data and train:
 ```
 python train_model.py
 ```
-4. Build both engines:
+4. build both engines:
 ```
 make
 ```
-5. Run scalar:
+5. run scalar:
 ```
 ./build/hft_engine data/ticks.csv data/weights.bin data/normstats.bin
 ```
-6. Run SIMD:
+6. run SIMD:
 ```
 ./build/hft_engine_simd data/ticks.csv data/weights.bin data/normstats.bin --simd
 ```
 
-Output per tick: `timestamp signal [p_down p_flat p_up]`
+output per tick: `timestamp signal [p_down p_flat p_up]`
