@@ -14,6 +14,10 @@
 #ifndef LATENCY_H
 #define LATENCY_H
 
+#ifdef __cplusplus
+extern "C"
+#endif
+
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -125,5 +129,9 @@ static inline void lat_report(Latency *l) {
                 l->dropped, MAX_SAMPLES);
 #undef PCT
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

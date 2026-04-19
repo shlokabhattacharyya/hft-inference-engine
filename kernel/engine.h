@@ -5,6 +5,10 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 
 // network dimensions (keep in sync with train_model.py)
@@ -41,5 +45,9 @@ int infer(const float *feat, const Weights *w, float *probs);
 
 // AVX2 forward pass (engine_simd.c)
 int infer_simd(const float *feat, const Weights *w, float *probs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
