@@ -6,7 +6,7 @@ a low-latency (sub-400ns) inference engine in C for market microstructure predic
 
 ten features computed over a rolling 10-tick window:
 
-| feature | Intuition |
+| feature | intuition |
 |---|---|
 | 1-tick mid-price return | immediate momentum |
 | 5-tick mid-price return | short-term trend |
