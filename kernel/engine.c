@@ -51,3 +51,4 @@ int infer(const float *feat, const Weights *w, float *probs) {
         if (probs[i] > probs[best]) best = i;
     return best - 1;  /* -1 = DOWN, 0 = FLAT, 1 = UP */
 }
+

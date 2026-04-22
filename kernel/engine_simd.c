@@ -107,3 +107,4 @@ int infer_simd(const float *feat, const Weights *w, float *probs) {
         if (probs[i] > probs[best]) best = i;
     return best - 1;
 }
+

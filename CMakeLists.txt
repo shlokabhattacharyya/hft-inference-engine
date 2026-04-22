@@ -18,21 +18,24 @@ endif()
 # warnings
 add_compile_options (-Wall -Wextra -Wpedantic)
 
-# AXV2 for SIMD kernel
-add_compile_options(-maxv2 -mfma)
+# AXV2 + FMA for SIMD kernel
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    add_compile_options(-mavx2 -mfma)
+endif()
 
 # C kernel (building as static library)
 add_library(kernel STATIC
 	kernel/engine.c
 	kernel/engine_simd.c
+	kernel/kernel_io.c
 )
 target_include_directories(kernel PUBLIC kernel)
+target_link_libraries(kernel PUBLIC m) # engine.c uses expf from libm
 
 # C++ main binary
-add_executable(hft_inference_engine
-	src/main.cpp
-)
-target_link_libraries(hft_inferece_engine PRIVATE kernel)
+add_executable(hft_inference_engine src/main.cpp)
+target_compile_features(hft_inference_engine PRIVATE cxx_std_17)
+target_link_libraries(hft_inference_engine PRIVATE kernel)
 
 # legacy C CLI (for regression testing kernel)
 add_executable(hft_inference_engine_cli kernel/main_cli.c)
