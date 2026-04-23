@@ -10,6 +10,17 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # for clangd/IDE tooling
 
+# external dependencies
+include(FetchContent)
+
+FetchContent_Declare(
+    ixwebsocket
+    GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
+    GIT_TAG v11.4.5
+)
+set(USE_OPEN_SSL ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(ixwebsocket)
+
 # default to Release if not specified (want optimizations on by default)
 if (NOT CMAKE_BUILD_TYPE)
 	set (CMAKE_BUILD_TYPE Release)
@@ -31,6 +42,12 @@ add_library(kernel STATIC
 )
 target_include_directories(kernel PUBLIC kernel)
 target_link_libraries(kernel PUBLIC m) # engine.c uses expf from libm
+
+# source files / targets
+add_executable(ws_test
+    src/ws_test.cpp
+)
+target_link_libraries(ws_test PRIVATE ixwebsocket)
 
 # C++ main binary
 add_executable(hft_inference_engine src/main.cpp)
