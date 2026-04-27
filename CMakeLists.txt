@@ -18,7 +18,12 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
     GIT_TAG v11.4.5
 )
-set(USE_OPEN_SSL ON CACHE BOOL "" FORCE)
+set(USE_TLS ON CACHE BOOL "" FORCE)
+if(APPLE)
+    set(USE_SECURE_TRANSPORT ON CACHE BOOL "" FORCE)
+else()
+    set(USE_OPEN_SSL ON CACHE BOOL "" FORCE)
+endif()
 FetchContent_MakeAvailable(ixwebsocket)
 
 # default to Release if not specified (want optimizations on by default)
@@ -46,13 +51,16 @@ target_link_libraries(kernel PUBLIC m) # engine.c uses expf from libm
 # source files / targets
 add_executable(ws_test
     src/ws_test.cpp
+    src/order_book.cpp
 )
 target_link_libraries(ws_test PRIVATE ixwebsocket)
+target_include_directories(ws_test PRIVATE third_party)
 
 # C++ main binary
 add_executable(hft_inference_engine src/main.cpp)
 target_compile_features(hft_inference_engine PRIVATE cxx_std_17)
 target_link_libraries(hft_inference_engine PRIVATE kernel)
+target_include_directories(hft_inference_engine PRIVATE third_party)
 
 # legacy C CLI (for regression testing kernel)
 add_executable(hft_inference_engine_cli kernel/main_cli.c)
