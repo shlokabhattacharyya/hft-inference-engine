@@ -17,6 +17,8 @@ struct PriceLevel {
 
 struct DepthUpdate {
     uint64_t event_time_ms;
+    uint64_t first_update_id;
+    uint64_t last_update_id;
     std::vector<PriceLevel> bids;
     std::vector<PriceLevel> asks;
 };
@@ -32,6 +34,8 @@ static DepthUpdate parseDepthUpdate(const std::string& message) {
 
     DepthUpdate update;
     update.event_time_ms = j["E"].get<uint64_t>();
+    update.first_update_id = j["U"].get<uint64_t>();
+    update.last_update_id = j["u"].get<uint64_t>();
 
     for (const auto& bid : j["b"]) {
         update.bids.push_back({
