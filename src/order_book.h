@@ -10,7 +10,7 @@
 
 class OrderBook {
 public:
-    // apply a single price-level update. quantity == 0 removes the level.
+    // apply a single price-level update. quantity == 0 removes the level
     void applyUpdate(double price, double quantity, bool is_bid);
 
     // called once per message to mark the book as having a new state
@@ -31,6 +31,9 @@ public:
     uint64_t lastUpdateTimeMs() const { return last_update_ms_; }
     size_t bidDepth() const { return bids_.size(); }
     size_t askDepth() const { return asks_.size(); }
+
+    // clear book state (if connection drops and reconnects)
+    void clear();
 
 private:
     // bids sorted high-to-low (std::greater), asks low-to-high (default).

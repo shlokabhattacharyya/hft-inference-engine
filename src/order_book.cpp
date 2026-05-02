@@ -75,3 +75,9 @@ double OrderBook::askVolume(int n_levels) const {
 bool OrderBook::isReady() const {
     return !bids_.empty() && !asks_.empty();
 }
+
+void OrderBook::clear() {
+    bids_.clear();
+    asks_.clear();
+    last_update_ms_ = 0;
+}

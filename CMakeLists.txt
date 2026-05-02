@@ -52,6 +52,7 @@ target_link_libraries(kernel PUBLIC m) # engine.c uses expf from libm
 add_executable(ws_test
     src/ws_test.cpp
     src/order_book.cpp
+    src/book_client.cpp
 )
 target_link_libraries(ws_test PRIVATE ixwebsocket)
 target_include_directories(ws_test PRIVATE third_party)
