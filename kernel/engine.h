@@ -2,6 +2,8 @@
 // dimensions, the weights layout, and scalar/SIMD inference entry points.
 
 
+#define _POSIX_C_SOURCE 200112L
+
 #ifndef ENGINE_H
 #define ENGINE_H
 

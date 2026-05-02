@@ -13,6 +13,7 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <thread>
 
 #include "order_book.h"
 
@@ -79,4 +80,7 @@ private:
 
     uint64_t last_applied_update_id_ = 0;   // only touched from WS thread (Synced)
     std::atomic<bool> resync_in_progress_{false};
+
+    std::thread resync_thread_;
+    std::atomic<bool> shutting_down_{false};
 };

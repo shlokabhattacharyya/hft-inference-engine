@@ -47,7 +47,11 @@ BookClient::BookClient(const std::string& symbol, UpdateCallback on_update)
 }
 
 BookClient::~BookClient() {
-    stop();
+    shutting_down_ = true;
+    ws_.stop();
+    if (resync_thread_.joinable()) {
+        resync_thread_.join();
+    }
 }
 
 void BookClient::start() { ws_.start(); }
@@ -103,9 +107,11 @@ void BookClient::onOpen() {
     std::cout << "[WS] Connected, buffering...\n";
     state_ = State::Buffering;
 
-    // kick off the snapshot fetch on a background thread so we don't
-    // block the WebSocket thread
-    std::thread([this]() { resyncOnThread(); }).detach();
+    // join any prior resync thread before spawning a new one
+    if (resync_thread_.joinable()) {
+        resync_thread_.join();
+    }
+    resync_thread_ = std::thread([this]() { resyncOnThread(); });
 }
 
 void BookClient::onClose() {
@@ -130,14 +136,14 @@ void BookClient::resyncOnThread() {
     }
 
     int attempt = 0;
-    while (state_.load() != State::Disconnected) {
+    while (state_.load() != State::Disconnected && !shutting_down_.load()) {
         attempt++;
         std::cout << "[RESYNC] attempt " << attempt << "\n";
 
         try {
             // wait until we've buffered at least a few diffs before fetching (on 
             // thin markets, snapshots can arrive faster than diffs)
-            for (int i = 0; i < 50; i++) {
+            for (int i = 0; i < 50 && !shutting_down_.load(); i++) {
                 {
                     std::lock_guard<std::mutex> lock(buffer_mutex_);
                     if (buffer_.size() >= 3) break;
@@ -294,13 +300,10 @@ bool BookClient::reconcileAndApply(const Snapshot& snap) {
 }
 
 void BookClient::triggerResync() {
-    state_ = State::Desynced;
+    state_ = State::Buffering;
 
-    std::thread([this]() {
-        // move back to Buffering so any new diffs get queued during the
-        // resync (resyncOnThread will then transition us to Synced on
-        // success)
-        state_ = State::Buffering;
-        resyncOnThread();
-    }).detach();
+    if (resync_thread_.joinable()) {
+        resync_thread_.join();
+    }
+    resync_thread_ = std::thread([this]() { resyncOnThread(); });
 }
