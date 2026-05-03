@@ -49,13 +49,22 @@ target_include_directories(kernel PUBLIC kernel)
 target_link_libraries(kernel PUBLIC m) # engine.c uses expf from libm
 
 # source files / targets
-add_executable(ws_test
-    src/ws_test.cpp
+add_executable(market_test
+    src/market_test.cpp
     src/order_book.cpp
     src/book_client.cpp
+    src/trade_client.cpp
+    src/market_state.cpp
 )
-target_link_libraries(ws_test PRIVATE ixwebsocket)
-target_include_directories(ws_test PRIVATE third_party)
+target_link_libraries(market_test PRIVATE ixwebsocket)
+target_include_directories(market_test PRIVATE third_party)
+
+add_executable(trade_test
+    src/trade_test.cpp
+    src/trade_client.cpp
+)
+target_link_libraries(trade_test PRIVATE ixwebsocket)
+target_include_directories(trade_test PRIVATE third_party)
 
 # C++ main binary
 add_executable(hft_inference_engine src/main.cpp)
